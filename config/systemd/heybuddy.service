@@ -1,0 +1,65 @@
+[Unit]
+Description=heyBuddy AI Companion Service
+Documentation=https://github.com/your-org/heybuddy
+After=network.target sound.target
+Wants=network.target
+RequiresMountsFor=/opt/heybuddy
+
+[Service]
+Type=notify
+User=heybuddy
+Group=heybuddy
+WorkingDirectory=/opt/heybuddy
+Environment=PYTHONPATH=/opt/heybuddy/src
+Environment=ENVIRONMENT=production
+EnvironmentFile=-/opt/heybuddy/config/.env
+
+# Main service command
+ExecStart=/opt/heybuddy/venv/bin/python /opt/heybuddy/src/main.py
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Health check and status
+ExecStartPre=/opt/heybuddy/scripts/pre-start-check.sh
+WatchdogSec=60
+NotifyAccess=main
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+TasksMax=50
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=no
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/heybuddy/data /opt/heybuddy/logs
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RemoveIPC=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+# Audio access (required for PowerConf S330)
+SupplementaryGroups=audio
+DevicePolicy=closed
+DeviceAllow=/dev/snd/controlC1 rw
+DeviceAllow=/dev/snd/pcmC1D0c rw
+DeviceAllow=/dev/snd/pcmC1D0p rw
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=heybuddy
+
+[Install]
+WantedBy=multi-user.target

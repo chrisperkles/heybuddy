@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>heyBuddy Parental Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div x-data="dashboard()" x-init="loadData()" class="container mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-robot text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">heyBuddy Dashboard</h1>
+                        <p class="text-gray-600">Parental Oversight & Monitoring</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full" :class="deviceStatus === 'online' ? 'bg-green-500' : 'bg-red-500'"></div>
+                        <span class="text-sm text-gray-600" x-text="deviceStatus === 'online' ? 'Device Online' : 'Device Offline'"></span>
+                    </div>
+                    <button @click="loadData()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Today's Sessions</p>
+                        <p class="text-3xl font-bold text-blue-600" x-text="stats.todaySessions"></p>
+                    </div>
+                    <i class="fas fa-comments text-blue-500 text-2xl"></i>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Total Messages</p>
+                        <p class="text-3xl font-bold text-green-600" x-text="stats.totalMessages"></p>
+                    </div>
+                    <i class="fas fa-message text-green-500 text-2xl"></i>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Screen Time</p>
+                        <p class="text-3xl font-bold text-purple-600" x-text="stats.screenTime + 'm'"></p>
+                    </div>
+                    <i class="fas fa-clock text-purple-500 text-2xl"></i>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">Emotional Support</p>
+                        <p class="text-3xl font-bold" :class="stats.emotionalSupport > 0 ? 'text-orange-600' : 'text-gray-400'" x-text="stats.emotionalSupport"></p>
+                    </div>
+                    <i class="fas fa-heart text-orange-500 text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity & Topics -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Recent Sessions -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-900">Recent Sessions</h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <template x-for="session in recentSessions" :key="session.id">
+                            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user text-blue-600"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-gray-900" x-text="session.duration + ' minutes'"></p>
+                                        <p class="text-sm text-gray-600" x-text="session.topics.join(', ')"></p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span x-show="session.emotionalSupport" class="w-3 h-3 bg-orange-500 rounded-full" title="Emotional support provided"></span>
+                                    <span class="text-sm text-gray-500" x-text="formatTime(session.timestamp)"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Topics & Categories -->
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-900">Discussion Topics</h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-3">
+                        <template x-for="topic in topTopics" :key="topic.name">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-4 h-4 rounded-full" :style="`background-color: ${topic.color}`"></div>
+                                    <span class="font-medium text-gray-900" x-text="topic.name"></span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-20 bg-gray-200 rounded-full h-2">
+                                        <div class="h-2 rounded-full" :style="`width: ${topic.percentage}%; background-color: ${topic.color}`"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-600" x-text="topic.count"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goals & Achievements -->
+        <div class="bg-white rounded-lg shadow-sm mb-6">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">Goals & Achievements</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-for="goal in goals" :key="goal.id">
+                        <div class="p-4 border border-gray-200 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-medium text-gray-900" x-text="goal.title"></h3>
+                                <span class="px-2 py-1 text-xs rounded-full" 
+                                      :class="goal.status === 'completed' ? 'bg-green-100 text-green-800' : goal.status === 'active' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'"
+                                      x-text="goal.status"></span>
+                            </div>
+                            <div class="mb-2">
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="h-2 rounded-full bg-blue-500" :style="`width: ${goal.progress}%`"></div>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600" x-text="`${goal.progress}% complete`"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Safety & Alerts -->
+        <div x-show="alerts.length > 0" class="bg-white rounded-lg shadow-sm">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">Safety Alerts</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <template x-for="alert in alerts" :key="alert.id">
+                        <div class="flex items-start space-x-3 p-4 rounded-lg" 
+                             :class="alert.level === 'high' ? 'bg-red-50 border border-red-200' : alert.level === 'medium' ? 'bg-orange-50 border border-orange-200' : 'bg-blue-50 border border-blue-200'">
+                            <i class="fas fa-exclamation-triangle text-lg mt-1" 
+                               :class="alert.level === 'high' ? 'text-red-500' : alert.level === 'medium' ? 'text-orange-500' : 'text-blue-500'"></i>
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-900" x-text="alert.title"></p>
+                                <p class="text-sm text-gray-600 mt-1" x-text="alert.description"></p>
+                                <p class="text-xs text-gray-500 mt-2" x-text="formatTime(alert.timestamp)"></p>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function dashboard() {
+            return {
+                deviceStatus: 'connecting',
+                stats: {
+                    todaySessions: 0,
+                    totalMessages: 0,
+                    screenTime: 0,
+                    emotionalSupport: 0
+                },
+                recentSessions: [],
+                topTopics: [],
+                goals: [],
+                alerts: [],
+                websocket: null,
+                reconnectAttempts: 0,
+                maxReconnectAttempts: 5,
+                
+                async loadData() {
+                    await this.connectWebSocket();
+                    
+                    try {
+                        // Check device status
+                        const healthResponse = await fetch('http://localhost:8080/health');
+                        if (healthResponse.ok) {
+                            this.deviceStatus = 'online';
+                            
+                            // Load conversation summary
+                            const summaryResponse = await fetch('http://localhost:8080/conversation/summary/test_child');
+                            if (summaryResponse.ok) {
+                                const data = await summaryResponse.json();
+                                this.updateStats(data);
+                                this.updateSessions(data);
+                                this.updateTopics(data);
+                            }
+                        } else {
+                            this.deviceStatus = 'offline';
+                        }
+                        
+                        // Load mock goals
+                        this.loadMockGoals();
+                        
+                        // Check for alerts
+                        this.checkAlerts();
+                        
+                    } catch (error) {
+                        console.error('Failed to load data:', error);
+                        this.deviceStatus = 'offline';
+                    }
+                },
+                
+                async connectWebSocket() {
+                    try {
+                        const wsUrl = 'ws://localhost:8080/ws/default';
+                        this.websocket = new WebSocket(wsUrl);
+                        
+                        this.websocket.onopen = () => {
+                            console.log('WebSocket connected');
+                            this.deviceStatus = 'online';
+                            this.reconnectAttempts = 0;
+                        };
+                        
+                        this.websocket.onmessage = (event) => {
+                            const message = JSON.parse(event.data);
+                            this.handleRealtimeMessage(message);
+                        };
+                        
+                        this.websocket.onclose = () => {
+                            console.log('WebSocket disconnected');
+                            this.deviceStatus = 'offline';
+                            this.scheduleReconnect();
+                        };
+                        
+                        this.websocket.onerror = (error) => {
+                            console.error('WebSocket error:', error);
+                            this.deviceStatus = 'offline';
+                        };
+                        
+                    } catch (error) {
+                        console.error('Failed to connect WebSocket:', error);
+                        this.deviceStatus = 'offline';
+                        this.scheduleReconnect();
+                    }
+                },
+                
+                scheduleReconnect() {
+                    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                        this.reconnectAttempts++;
+                        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+                        console.log(`Reconnecting WebSocket in ${delay}ms (attempt ${this.reconnectAttempts})`);
+                        
+                        setTimeout(() => {
+                            this.connectWebSocket();
+                        }, delay);
+                    }
+                },
+                
+                handleRealtimeMessage(message) {
+                    console.log('Received real-time message:', message);
+                    
+                    switch(message.type) {
+                        case 'conversation_started':
+                            this.stats.todaySessions++;
+                            this.addAlert({
+                                level: 'info',
+                                title: 'Conversation Started',
+                                description: 'Your child started talking to heyBuddy',
+                                timestamp: message.timestamp
+                            });
+                            break;
+                            
+                        case 'conversation_ended':
+                            this.stats.totalMessages += message.data.message_count;
+                            this.stats.screenTime += message.data.duration_minutes;
+                            
+                            // Add new session to recent sessions
+                            this.recentSessions.unshift({
+                                id: Date.now(),
+                                duration: message.data.duration_minutes,
+                                topics: message.data.topics || ['general'],
+                                emotionalSupport: message.data.emotional_support,
+                                timestamp: message.timestamp
+                            });
+                            
+                            // Keep only last 5 sessions
+                            this.recentSessions = this.recentSessions.slice(0, 5);
+                            break;
+                            
+                        case 'emotional_support':
+                            this.stats.emotionalSupport++;
+                            this.addAlert({
+                                level: 'medium',
+                                title: 'Emotional Support Provided',
+                                description: `Child expressed: ${message.data.emotional_keywords.join(', ')}`,
+                                timestamp: message.timestamp
+                            });
+                            break;
+                            
+                        case 'safety_alert':
+                            this.addAlert({
+                                level: message.data.level,
+                                title: 'Safety Alert',
+                                description: message.data.message,
+                                timestamp: message.timestamp
+                            });
+                            break;
+                            
+                        case 'goal_progress':
+                            this.updateGoalProgress(message.data);
+                            if (message.data.completed) {
+                                this.addAlert({
+                                    level: 'success',
+                                    title: 'Goal Completed!',
+                                    description: `"${message.data.goal_title}" was completed`,
+                                    timestamp: message.timestamp
+                                });
+                            }
+                            break;
+                            
+                        case 'device_status':
+                            this.deviceStatus = message.data.status === 'healthy' ? 'online' : 'offline';
+                            break;
+                    }
+                },
+                
+                addAlert(alert) {
+                    alert.id = Date.now();
+                    this.alerts.unshift(alert);
+                    
+                    // Keep only last 10 alerts
+                    this.alerts = this.alerts.slice(0, 10);
+                },
+                
+                updateGoalProgress(goalData) {
+                    const existingGoal = this.goals.find(g => g.title === goalData.goal_title);
+                    if (existingGoal) {
+                        existingGoal.progress = goalData.progress_percent;
+                        existingGoal.status = goalData.status;
+                    }
+                },
+                
+                updateStats(data) {
+                    this.stats = {
+                        todaySessions: 1,
+                        totalMessages: data.conversation_summary?.message_count || 0,
+                        screenTime: data.safety_summary?.duration_minutes || 0,
+                        emotionalSupport: data.safety_summary?.emotional_support_needed ? 1 : 0
+                    };
+                },
+                
+                updateSessions(data) {
+                    this.recentSessions = [{
+                        id: 1,
+                        duration: data.safety_summary?.duration_minutes || 5,
+                        topics: data.conversation_summary?.topics || ['general'],
+                        emotionalSupport: data.safety_summary?.emotional_support_needed || false,
+                        timestamp: new Date().toISOString()
+                    }];
+                },
+                
+                updateTopics(data) {
+                    const topics = data.conversation_summary?.topics || [];
+                    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+                    
+                    this.topTopics = topics.map((topic, index) => ({
+                        name: topic.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                        count: Math.floor(Math.random() * 5) + 1,
+                        percentage: Math.floor(Math.random() * 60) + 20,
+                        color: colors[index % colors.length]
+                    }));
+                },
+                
+                loadMockGoals() {
+                    this.goals = [
+                        {
+                            id: 1,
+                            title: 'Daily Tooth Brushing',
+                            status: 'active',
+                            progress: 85
+                        },
+                        {
+                            id: 2,
+                            title: 'Read 3 Books This Week',
+                            status: 'active',
+                            progress: 60
+                        },
+                        {
+                            id: 3,
+                            title: 'Practice Kindness',
+                            status: 'completed',
+                            progress: 100
+                        }
+                    ];
+                },
+                
+                checkAlerts() {
+                    this.alerts = [];
+                    
+                    // Check if emotional support was needed
+                    if (this.stats.emotionalSupport > 0) {
+                        this.alerts.push({
+                            id: 1,
+                            level: 'medium',
+                            title: 'Emotional Support Provided',
+                            description: 'Your child expressed some concerns about school. The AI provided appropriate support and encouragement.',
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                },
+                
+                formatTime(timestamp) {
+                    const date = new Date(timestamp);
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

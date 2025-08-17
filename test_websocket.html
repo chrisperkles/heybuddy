@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test WebSocket Connection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .message { margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; background-color: #f8f9fa; }
+        .emotional { border-left-color: #fd7e14; background-color: #fff3cd; }
+        .safety { border-left-color: #dc3545; background-color: #f8d7da; }
+        .success { border-left-color: #28a745; background-color: #d4edda; }
+        #status { font-weight: bold; margin-bottom: 20px; }
+        #log { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>heyBuddy WebSocket Test</h1>
+    <div id="status">Connecting...</div>
+    
+    <h2>Real-time Messages:</h2>
+    <div id="log"></div>
+    
+    <h2>Test Emotional Support:</h2>
+    <button onclick="testEmotionalSupport()">Send Scared Message</button>
+    <button onclick="testNormalConversation()">Send Normal Message</button>
+    
+    <script>
+        let ws;
+        let connected = false;
+        
+        function connect() {
+            const statusEl = document.getElementById('status');
+            const logEl = document.getElementById('log');
+            
+            ws = new WebSocket('ws://localhost:8080/ws/default');
+            
+            ws.onopen = function() {
+                connected = true;
+                statusEl.textContent = 'Connected to heyBuddy WebSocket ✅';
+                statusEl.style.color = 'green';
+                log('Connected to WebSocket', 'success');
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                log('Received: ' + JSON.stringify(message, null, 2), getMessageClass(message.type));
+            };
+            
+            ws.onclose = function() {
+                connected = false;
+                statusEl.textContent = 'Disconnected ❌';
+                statusEl.style.color = 'red';
+                log('WebSocket disconnected');
+                
+                // Try to reconnect after 3 seconds
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                statusEl.textContent = 'Connection Error ❌';
+                statusEl.style.color = 'red';
+                log('WebSocket error: ' + error);
+            };
+        }
+        
+        function log(message, className = '') {
+            const logEl = document.getElementById('log');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + className;
+            messageEl.innerHTML = '<strong>' + new Date().toLocaleTimeString() + '</strong><br>' + message;
+            logEl.appendChild(messageEl);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function getMessageClass(type) {
+            switch(type) {
+                case 'emotional_support': return 'emotional';
+                case 'safety_alert': return 'safety';
+                case 'connection_established': return 'success';
+                default: return '';
+            }
+        }
+        
+        async function testEmotionalSupport() {
+            log('Sending emotional support test...', 'emotional');
+            
+            try {
+                const response = await fetch('http://localhost:8080/conversation/text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: "I feel really scared and worried about everything",
+                        user_id: "test_child_websocket",
+                        age: 8,
+                        persona: "friendly"
+                    })
+                });
+                
+                const result = await response.json();
+                log('API Response: ' + JSON.stringify(result, null, 2));
+                
+            } catch (error) {
+                log('Error: ' + error.message, 'safety');
+            }
+        }
+        
+        async function testNormalConversation() {
+            log('Sending normal conversation test...');
+            
+            try {
+                const response = await fetch('http://localhost:8080/conversation/text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: "Hello! How are you today?",
+                        user_id: "test_child_websocket",
+                        age: 8,
+                        persona: "friendly"
+                    })
+                });
+                
+                const result = await response.json();
+                log('API Response: ' + JSON.stringify(result, null, 2));
+                
+            } catch (error) {
+                log('Error: ' + error.message, 'safety');
+            }
+        }
+        
+        // Start connection when page loads
+        connect();
+    </script>
+</body>
+</html>

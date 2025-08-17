@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  heybuddy:
+    build: .
+    container_name: heybuddy-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=development
+      - AUDIO_DEVICE=mock
+      - DATABASE_URL=sqlite:///./data/heybuddy.db
+      - LOG_LEVEL=INFO
+      - ENABLE_SYSTEMD_NOTIFY=false
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./src:/app/src
+    working_dir: /app
+    command: python src/main.py
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Audio testing service
+  audio-test:
+    build: .
+    container_name: heybuddy-audio-test
+    environment:
+      - ENVIRONMENT=development
+      - AUDIO_DEVICE=mock
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    working_dir: /app
+    command: python tests/test_audio_pipeline.py
+    profiles:
+      - testing
