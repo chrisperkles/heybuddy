@@ -1,27 +1,27 @@
 [Unit]
 Description=heyBuddy AI Companion Service
-Documentation=https://github.com/your-org/heybuddy
+Documentation=https://github.com/chrisperkles/heybuddy
 After=network.target sound.target
 Wants=network.target
 RequiresMountsFor=/opt/heybuddy
 
 [Service]
-Type=notify
+Type=simple
 User=heybuddy
 Group=heybuddy
 WorkingDirectory=/opt/heybuddy
 Environment=PYTHONPATH=/opt/heybuddy/src
 Environment=ENVIRONMENT=production
-EnvironmentFile=-/opt/heybuddy/config/.env
+EnvironmentFile=-/opt/heybuddy/.env
 
 # Main service command
 ExecStart=/opt/heybuddy/venv/bin/python /opt/heybuddy/src/main.py
 ExecReload=/bin/kill -HUP $MAINPID
 
-# Health check and status
-ExecStartPre=/opt/heybuddy/scripts/pre-start-check.sh
-WatchdogSec=60
-NotifyAccess=main
+# Health check and status (optional - script may not exist)
+# ExecStartPre=/opt/heybuddy/scripts/pre-start-check.sh
+# WatchdogSec=60  # Only for Type=notify
+# NotifyAccess=main  # Only for Type=notify
 
 # Restart policy
 Restart=always
