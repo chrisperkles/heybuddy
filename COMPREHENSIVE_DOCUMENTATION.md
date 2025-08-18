@@ -245,7 +245,7 @@ cp .env.example .env
 
 # OpenAI API Key setzen
 nano .env
-# OPENAI_API_KEY=sk-proj-your-key-here
+# OPENAI_API_KEY=your-openai-api-key-here
 # LANGUAGE=de
 # AUDIO_DEVICE=powerconf
 ```
