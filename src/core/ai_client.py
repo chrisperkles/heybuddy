@@ -1,11 +1,13 @@
 """
 OpenAI API client with safety filters for heyBuddy
+Supports both English and German language modes
 """
 import asyncio
 import logging
 from typing import Optional, Dict, Any, List
 from openai import AsyncOpenAI
 from core.config import settings
+from core.german_ai import GermanContentFilter, GermanAIPersona, GermanSafetyResponse
 
 logger = logging.getLogger(__name__)
 
@@ -106,10 +108,12 @@ Additional guidelines for school-age children:
 class AIClient:
     """Main AI client with safety and conversation management"""
     
-    def __init__(self):
+    def __init__(self, language: str = "en"):
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
         self.safety_filter = SafetyFilter(self.client)
         self.conversation_history: Dict[str, List[Dict[str, str]]] = {}
+        self.language = language
+        self.german_filter = GermanContentFilter() if language == "de" else None
         
     async def initialize(self) -> bool:
         """Initialize and test the AI client"""
@@ -139,51 +143,84 @@ class AIClient:
         input_moderation = await self.safety_filter.moderate_content(user_input)
         if not input_moderation["safe"]:
             logger.warning(f"User input blocked by moderation: {user_input[:50]}")
+            error_message = (GermanSafetyResponse.get_response("inappropriate") 
+                           if self.language == "de" 
+                           else "I can't help with that. Let's talk about something else!")
             return {
                 "success": False,
                 "error": "inappropriate_input",
-                "message": "I can't help with that. Let's talk about something else!"
+                "message": error_message
             }
         
-        # Step 2: Apply age-appropriate filtering
-        if not self.safety_filter.apply_age_appropriate_filter(user_input, age):
+        # Step 2: Apply German content filtering if language is German
+        if self.language == "de" and self.german_filter:
+            german_check = self.german_filter.check_content_appropriateness(user_input, age)
+            if not german_check["safe"]:
+                logger.warning(f"German filter blocked content: {german_check['flagged_words']}")
+                return {
+                    "success": False,
+                    "error": "german_inappropriate",
+                    "message": GermanSafetyResponse.get_response("inappropriate"),
+                    "german_analysis": german_check
+                }
+        
+        # Step 3: Apply age-appropriate filtering (English legacy)
+        if self.language == "en" and not self.safety_filter.apply_age_appropriate_filter(user_input, age):
             return {
                 "success": False,
                 "error": "age_inappropriate",
                 "message": "Let's talk about something more fun and appropriate!"
             }
         
-        # Step 3: Generate AI response
+        # Step 4: Check for emotional support needs (German)
+        emotional_support_data = None
+        if self.language == "de" and self.german_filter:
+            german_check = self.german_filter.check_content_appropriateness(user_input, age)
+            if german_check["emotional_support_needed"]:
+                emotional_support_data = german_check
+                logger.info(f"Emotional support detected: {german_check['emotional_keywords']}")
+        
+        # Step 5: Generate AI response
         try:
-            response = await self._generate_response(user_input, user_id, age, persona)
+            response = await self._generate_response(user_input, user_id, age, persona, emotional_support_data)
             
-            # Step 4: Moderate AI response
+            # Step 6: Moderate AI response
             output_moderation = await self.safety_filter.moderate_content(response)
             if not output_moderation["safe"]:
                 logger.warning(f"AI response blocked by moderation: {response[:50]}")
+                error_message = (GermanSafetyResponse.get_response("error") 
+                               if self.language == "de" 
+                               else "Let me think of a better way to help you with that!")
                 return {
                     "success": False,
                     "error": "inappropriate_output",
-                    "message": "Let me think of a better way to help you with that!"
+                    "message": error_message
                 }
             
-            # Step 5: Apply age filter to response
-            if not self.safety_filter.apply_age_appropriate_filter(response, age):
+            # Step 7: Apply age filter to response (English legacy)
+            if self.language == "en" and not self.safety_filter.apply_age_appropriate_filter(response, age):
                 return {
                     "success": False,
                     "error": "age_inappropriate_output",
                     "message": "Let me help you with something more suitable!"
                 }
             
-            # Step 6: Store conversation (truncated for memory management)
+            # Step 8: Store conversation (truncated for memory management)
             self._store_conversation(user_id, user_input, response)
             
-            return {
+            result = {
                 "success": True,
                 "response": response,
                 "input_moderation": input_moderation,
-                "output_moderation": output_moderation
+                "output_moderation": output_moderation,
+                "language": self.language
             }
+            
+            # Add emotional support info if detected
+            if emotional_support_data:
+                result["emotional_support"] = emotional_support_data
+            
+            return result
             
         except Exception as e:
             logger.error(f"Error processing conversation: {e}")
@@ -198,16 +235,29 @@ class AIClient:
         user_input: str, 
         user_id: str,
         age: Optional[int],
-        persona: str
+        persona: str,
+        emotional_support_data: Optional[Dict[str, Any]] = None
     ) -> str:
         """Generate AI response using OpenAI API"""
         
         # Get conversation history
         history = self.conversation_history.get(user_id, [])
         
+        # Build system prompt based on language
+        if self.language == "de":
+            if emotional_support_data and emotional_support_data["emotional_support_needed"]:
+                # Use emotional support prompt for German
+                system_prompt = GermanAIPersona.get_emotional_support_prompt(
+                    emotional_support_data["emotional_keywords"]
+                )
+            else:
+                system_prompt = GermanAIPersona.get_german_system_prompt(age, persona)
+        else:
+            system_prompt = AIPersona.get_system_prompt(age, persona)
+        
         # Build messages for API call
         messages = [
-            {"role": "system", "content": AIPersona.get_system_prompt(age, persona)}
+            {"role": "system", "content": system_prompt}
         ]
         
         # Add recent conversation history (limit to prevent token overflow)
@@ -248,16 +298,61 @@ class AIClient:
     async def generate_story(self, theme: str, age: Optional[int] = None) -> Dict[str, Any]:
         """Generate a safe, age-appropriate story"""
         
-        prompt = f"Tell a short, wholesome story about {theme}. "
-        if age:
-            if age <= 6:
-                prompt += "Use very simple words for a young child. Keep it under 100 words."
-            elif age <= 12:
-                prompt += "Make it appropriate for a school-age child. Keep it under 150 words."
+        if self.language == "de":
+            # For German, use direct API call with storytelling prompt
+            try:
+                system_prompt = GermanAIPersona.get_storytelling_prompt(theme, age)
+                
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Erzähle eine Geschichte über {theme}"}
+                ]
+                
+                response = await self.client.chat.completions.create(
+                    model=settings.openai_model,
+                    messages=messages,
+                    max_tokens=200,  # Longer for stories
+                    temperature=0.8,  # More creative for stories
+                    presence_penalty=0.1,
+                    frequency_penalty=0.1
+                )
+                
+                story = response.choices[0].message.content.strip()
+                
+                # Moderate the generated story
+                moderation = await self.safety_filter.moderate_content(story)
+                if not moderation["safe"]:
+                    return {
+                        "success": False,
+                        "error": "inappropriate_story",
+                        "message": "Entschuldigung, ich denke mir eine andere Geschichte aus."
+                    }
+                
+                return {
+                    "success": True,
+                    "response": story,
+                    "language": "de"
+                }
+                
+            except Exception as e:
+                logger.error(f"Error generating German story: {e}")
+                return {
+                    "success": False,
+                    "error": "story_generation_error",
+                    "message": "Entschuldigung, ich kann gerade keine Geschichte erzählen. Versuche es später nochmal."
+                }
         else:
-            prompt += "Keep it appropriate for children and under 150 words."
-        
-        return await self.process_conversation(prompt, "story_generator", age, "storyteller")
+            # English story generation
+            prompt = f"Tell a short, wholesome story about {theme}. "
+            if age:
+                if age <= 6:
+                    prompt += "Use very simple words for a young child. Keep it under 100 words."
+                elif age <= 12:
+                    prompt += "Make it appropriate for a school-age child. Keep it under 150 words."
+            else:
+                prompt += "Keep it appropriate for children and under 150 words."
+            
+            return await self.process_conversation(prompt, "story_generator", age, "storyteller")
     
     async def get_conversation_summary(self, user_id: str) -> Dict[str, Any]:
         """Get a summary of recent conversation for parental oversight"""

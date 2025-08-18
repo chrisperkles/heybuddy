@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>heyBuddy Development Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .log-line {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div x-data="debugDashboard()" x-init="init()" class="container mx-auto px-4 py-6">
+        
+        <!-- Header -->
+        <header class="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-bug text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">heyBuddy Debug Dashboard</h1>
+                        <p class="text-gray-400">Entwickler-Tools für Raspberry Pi</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full" :class="connectionStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'"></div>
+                        <span class="text-sm text-gray-400" x-text="connectionStatus === 'connected' ? 'Verbunden' : 'Getrennt'"></span>
+                    </div>
+                    <button @click="refreshAll()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Aktualisieren
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- System Metrics Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <!-- CPU Metrics -->
+            <div class="bg-gray-800 rounded-lg p-6 metric-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-200">CPU</h3>
+                    <i class="fas fa-microchip text-blue-500 text-xl"></i>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Auslastung:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.cpu?.usage_percent + '%'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Temperatur:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.cpu?.temperature_celsius ? systemInfo.cpu.temperature_celsius + '°C' : 'N/A'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Kerne:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.cpu?.count"></span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div class="h-2 rounded-full bg-blue-500" :style="`width: ${systemInfo.cpu?.usage_percent || 0}%`"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Metrics -->
+            <div class="bg-gray-800 rounded-lg p-6 metric-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-200">Speicher</h3>
+                    <i class="fas fa-memory text-green-500 text-xl"></i>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Verwendet:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.memory?.used_percent + '%'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Verfügbar:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.memory?.available_gb + ' GB'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Gesamt:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.memory?.total_gb + ' GB'"></span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div class="h-2 rounded-full bg-green-500" :style="`width: ${systemInfo.memory?.used_percent || 0}%`"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disk Metrics -->
+            <div class="bg-gray-800 rounded-lg p-6 metric-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-200">Festplatte</h3>
+                    <i class="fas fa-hdd text-purple-500 text-xl"></i>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Verwendet:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.disk?.used_percent + '%'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Frei:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.disk?.free_gb + ' GB'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Gesamt:</span>
+                        <span class="text-white font-mono" x-text="systemInfo.disk?.total_gb + ' GB'"></span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="w-full bg-gray-700 rounded-full h-2">
+                        <div class="h-2 rounded-full bg-purple-500" :style="`width: ${systemInfo.disk?.used_percent || 0}%`"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Metrics -->
+            <div class="bg-gray-800 rounded-lg p-6 metric-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-200">Netzwerk</h3>
+                    <i class="fas fa-network-wired text-orange-500 text-xl"></i>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Internet:</span>
+                        <span class="text-white font-mono" x-text="networkInfo.connectivity?.internet?.reachable ? '✅' : '❌'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">OpenAI:</span>
+                        <span class="text-white font-mono" x-text="networkInfo.connectivity?.openai_api?.reachable ? '✅' : '❌'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">GitHub:</span>
+                        <span class="text-white font-mono" x-text="networkInfo.connectivity?.github?.reachable ? '✅' : '❌'"></span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="text-xs text-gray-400" x-text="'Host: ' + (networkInfo.hostname || 'Unknown')"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Services and Logs Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            
+            <!-- Service Status -->
+            <div class="bg-gray-800 rounded-lg">
+                <div class="p-6 border-b border-gray-700">
+                    <h2 class="text-xl font-semibold text-gray-200">Service Status</h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <template x-for="(service, name) in serviceStatus" :key="name">
+                        <div class="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 rounded-full" :class="service.active ? 'bg-green-500' : 'bg-red-500'"></div>
+                                <div>
+                                    <p class="font-medium text-white" x-text="service.name || name"></p>
+                                    <p class="text-sm text-gray-400" x-text="service.status"></p>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button @click="restartService(service.name || name)" 
+                                        class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+                                    Restart
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Live Logs -->
+            <div class="bg-gray-800 rounded-lg">
+                <div class="p-6 border-b border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold text-gray-200">Live Logs</h2>
+                        <div class="flex space-x-2">
+                            <button @click="startLogStream()" 
+                                    :disabled="logStreamActive"
+                                    class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm disabled:opacity-50">
+                                Start
+                            </button>
+                            <button @click="clearLogs()" 
+                                    class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="bg-gray-900 rounded p-4 h-64 overflow-y-auto">
+                        <template x-for="(log, index) in logLines" :key="index">
+                            <div class="log-line text-gray-300 mb-1" x-text="log.line"></div>
+                        </template>
+                        <div x-show="logLines.length === 0" class="text-gray-500 text-center py-8">
+                            Keine Logs verfügbar. Klicken Sie auf "Start" um Live-Logs zu aktivieren.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Monitor -->
+        <div class="bg-gray-800 rounded-lg mb-6">
+            <div class="p-6 border-b border-gray-700">
+                <h2 class="text-xl font-semibold text-gray-200">Top Prozesse</h2>
+            </div>
+            <div class="p-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700">
+                                <th class="text-left py-2 text-gray-400">PID</th>
+                                <th class="text-left py-2 text-gray-400">Name</th>
+                                <th class="text-left py-2 text-gray-400">CPU %</th>
+                                <th class="text-left py-2 text-gray-400">Memory %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="process in systemInfo.top_processes || []" :key="process.pid">
+                                <tr class="border-b border-gray-700">
+                                    <td class="py-2 text-gray-300 font-mono" x-text="process.pid"></td>
+                                    <td class="py-2 text-gray-300" x-text="process.name"></td>
+                                    <td class="py-2 text-gray-300 font-mono" x-text="(process.cpu_percent || 0).toFixed(1) + '%'"></td>
+                                    <td class="py-2 text-gray-300 font-mono" x-text="(process.memory_percent || 0).toFixed(1) + '%'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-gray-800 rounded-lg">
+            <div class="p-6 border-b border-gray-700">
+                <h2 class="text-xl font-semibold text-gray-200">Schnellaktionen</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button @click="exportDebugSnapshot()" 
+                            class="p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center">
+                        <i class="fas fa-download block mb-2"></i>
+                        Debug Export
+                    </button>
+                    <button @click="testConnectivity()" 
+                            class="p-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center">
+                        <i class="fas fa-wifi block mb-2"></i>
+                        Netzwerk Test
+                    </button>
+                    <button @click="restartAllServices()" 
+                            class="p-4 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-center">
+                        <i class="fas fa-sync block mb-2"></i>
+                        Alle Services
+                    </button>
+                    <button @click="openSystemLogs()" 
+                            class="p-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-center">
+                        <i class="fas fa-terminal block mb-2"></i>
+                        System Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function debugDashboard() {
+            return {
+                connectionStatus: 'disconnected',
+                websocket: null,
+                systemInfo: {},
+                serviceStatus: {},
+                networkInfo: {},
+                logLines: [],
+                logStreamActive: false,
+                sessionId: null,
+
+                async init() {
+                    await this.connectWebSocket();
+                    await this.refreshAll();
+                    this.startPeriodicRefresh();
+                },
+
+                async connectWebSocket() {
+                    try {
+                        const wsUrl = `ws://localhost:8080/debug/ws/${this.generateSessionId()}`;
+                        this.websocket = new WebSocket(wsUrl);
+                        
+                        this.websocket.onopen = () => {
+                            console.log('Debug WebSocket connected');
+                            this.connectionStatus = 'connected';
+                        };
+                        
+                        this.websocket.onmessage = (event) => {
+                            const message = JSON.parse(event.data);
+                            this.handleWebSocketMessage(message);
+                        };
+                        
+                        this.websocket.onclose = () => {
+                            console.log('Debug WebSocket disconnected');
+                            this.connectionStatus = 'disconnected';
+                            this.scheduleReconnect();
+                        };
+                        
+                        this.websocket.onerror = (error) => {
+                            console.error('Debug WebSocket error:', error);
+                            this.connectionStatus = 'disconnected';
+                        };
+                        
+                    } catch (error) {
+                        console.error('Failed to connect debug WebSocket:', error);
+                    }
+                },
+
+                handleWebSocketMessage(message) {
+                    switch(message.type) {
+                        case 'session_started':
+                            this.sessionId = message.data.session_id;
+                            this.systemInfo = message.data.system_info;
+                            this.serviceStatus = message.data.service_status;
+                            this.networkInfo = message.data.network_info;
+                            break;
+                            
+                        case 'log_line':
+                            this.logLines.push(message.data);
+                            // Keep only last 100 lines
+                            if (this.logLines.length > 100) {
+                                this.logLines = this.logLines.slice(-100);
+                            }
+                            // Auto-scroll to bottom
+                            this.$nextTick(() => {
+                                const logContainer = document.querySelector('.overflow-y-auto');
+                                if (logContainer) {
+                                    logContainer.scrollTop = logContainer.scrollHeight;
+                                }
+                            });
+                            break;
+                            
+                        case 'error':
+                            console.error('Debug error:', message.data.message);
+                            break;
+                    }
+                },
+
+                async sendDebugCommand(command, params = {}) {
+                    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                        this.websocket.send(JSON.stringify({
+                            type: 'debug_command',
+                            command: command,
+                            params: params,
+                            session_id: this.sessionId
+                        }));
+                    }
+                },
+
+                async refreshAll() {
+                    await this.sendDebugCommand('get_system_info');
+                    await this.sendDebugCommand('get_service_status');
+                    await this.sendDebugCommand('get_network_info');
+                },
+
+                async restartService(serviceName) {
+                    if (confirm(`Service "${serviceName}" neustarten?`)) {
+                        await this.sendDebugCommand('restart_service', { service_name: serviceName });
+                        // Refresh status after restart
+                        setTimeout(() => this.sendDebugCommand('get_service_status'), 2000);
+                    }
+                },
+
+                async startLogStream() {
+                    this.logStreamActive = true;
+                    await this.sendDebugCommand('stream_logs', { lines: 50 });
+                },
+
+                clearLogs() {
+                    this.logLines = [];
+                },
+
+                async exportDebugSnapshot() {
+                    try {
+                        const response = await fetch('http://localhost:8080/debug/snapshot');
+                        const data = await response.json();
+                        
+                        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `heybuddy-debug-${new Date().toISOString().slice(0, 19)}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    } catch (error) {
+                        console.error('Failed to export debug snapshot:', error);
+                    }
+                },
+
+                async testConnectivity() {
+                    await this.sendDebugCommand('get_network_info');
+                },
+
+                async restartAllServices() {
+                    if (confirm('Alle heyBuddy Services neustarten?')) {
+                        for (const serviceName of ['heybuddy', 'heybuddy-updater']) {
+                            await this.sendDebugCommand('restart_service', { service_name: serviceName });
+                        }
+                        setTimeout(() => this.sendDebugCommand('get_service_status'), 5000);
+                    }
+                },
+
+                openSystemLogs() {
+                    window.open('http://localhost:8080/debug/logs', '_blank');
+                },
+
+                generateSessionId() {
+                    return 'debug_' + Math.random().toString(36).substr(2, 9);
+                },
+
+                scheduleReconnect() {
+                    setTimeout(() => {
+                        this.connectWebSocket();
+                    }, 5000);
+                },
+
+                startPeriodicRefresh() {
+                    setInterval(() => {
+                        if (this.connectionStatus === 'connected') {
+                            this.sendDebugCommand('get_system_info');
+                        }
+                    }, 30000); // Refresh every 30 seconds
+                }
+            }
+        }
+    </script>
+</body>
+</html>

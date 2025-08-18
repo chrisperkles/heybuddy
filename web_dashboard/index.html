@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>heyBuddy Parental Dashboard</title>
+    <title>heyBuddy Eltern-Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -22,16 +22,16 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">heyBuddy Dashboard</h1>
-                        <p class="text-gray-600">Parental Oversight & Monitoring</p>
+                        <p class="text-gray-600">Elterliche Überwachung & Kontrolle</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2">
                         <div class="w-3 h-3 rounded-full" :class="deviceStatus === 'online' ? 'bg-green-500' : 'bg-red-500'"></div>
-                        <span class="text-sm text-gray-600" x-text="deviceStatus === 'online' ? 'Device Online' : 'Device Offline'"></span>
+                        <span class="text-sm text-gray-600" x-text="deviceStatus === 'online' ? 'Gerät Online' : 'Gerät Offline'"></span>
                     </div>
                     <button @click="loadData()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-sync-alt mr-2"></i>Refresh
+                        <i class="fas fa-sync-alt mr-2"></i>Aktualisieren
                     </button>
                 </div>
             </div>
@@ -42,7 +42,7 @@
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">Today's Sessions</p>
+                        <p class="text-sm text-gray-600">Heutige Gespräche</p>
                         <p class="text-3xl font-bold text-blue-600" x-text="stats.todaySessions"></p>
                     </div>
                     <i class="fas fa-comments text-blue-500 text-2xl"></i>
@@ -52,7 +52,7 @@
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">Total Messages</p>
+                        <p class="text-sm text-gray-600">Nachrichten Gesamt</p>
                         <p class="text-3xl font-bold text-green-600" x-text="stats.totalMessages"></p>
                     </div>
                     <i class="fas fa-message text-green-500 text-2xl"></i>
@@ -62,7 +62,7 @@
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">Screen Time</p>
+                        <p class="text-sm text-gray-600">Bildschirmzeit</p>
                         <p class="text-3xl font-bold text-purple-600" x-text="stats.screenTime + 'm'"></p>
                     </div>
                     <i class="fas fa-clock text-purple-500 text-2xl"></i>
@@ -72,7 +72,7 @@
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">Emotional Support</p>
+                        <p class="text-sm text-gray-600">Emotionale Unterstützung</p>
                         <p class="text-3xl font-bold" :class="stats.emotionalSupport > 0 ? 'text-orange-600' : 'text-gray-400'" x-text="stats.emotionalSupport"></p>
                     </div>
                     <i class="fas fa-heart text-orange-500 text-2xl"></i>
@@ -85,7 +85,7 @@
             <!-- Recent Sessions -->
             <div class="bg-white rounded-lg shadow-sm">
                 <div class="p-6 border-b border-gray-200">
-                    <h2 class="text-xl font-semibold text-gray-900">Recent Sessions</h2>
+                    <h2 class="text-xl font-semibold text-gray-900">Letzte Gespräche</h2>
                 </div>
                 <div class="p-6">
                     <div class="space-y-4">
@@ -113,7 +113,7 @@
             <!-- Topics & Categories -->
             <div class="bg-white rounded-lg shadow-sm">
                 <div class="p-6 border-b border-gray-200">
-                    <h2 class="text-xl font-semibold text-gray-900">Discussion Topics</h2>
+                    <h2 class="text-xl font-semibold text-gray-900">Gesprächsthemen</h2>
                 </div>
                 <div class="p-6">
                     <div class="space-y-3">
@@ -139,7 +139,7 @@
         <!-- Goals & Achievements -->
         <div class="bg-white rounded-lg shadow-sm mb-6">
             <div class="p-6 border-b border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-900">Goals & Achievements</h2>
+                <h2 class="text-xl font-semibold text-gray-900">Ziele & Erfolge</h2>
             </div>
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -166,7 +166,7 @@
         <!-- Safety & Alerts -->
         <div x-show="alerts.length > 0" class="bg-white rounded-lg shadow-sm">
             <div class="p-6 border-b border-gray-200">
-                <h2 class="text-xl font-semibold text-gray-900">Safety Alerts</h2>
+                <h2 class="text-xl font-semibold text-gray-900">Sicherheitswarnungen</h2>
             </div>
             <div class="p-6">
                 <div class="space-y-4">
@@ -188,6 +188,27 @@
     </div>
 
     <script>
+        // German translations for the dashboard
+        const DE_TRANSLATIONS = {
+            "Device Online": "Gerät Online",
+            "Device Offline": "Gerät Offline", 
+            "Emotional Support Provided": "Emotionale Unterstützung Geleistet",
+            "Child expressed": "Kind äußerte",
+            "Today's Sessions": "Heutige Gespräche",
+            "Total Messages": "Nachrichten Gesamt",
+            "Screen Time": "Bildschirmzeit",
+            "Emotional Support": "Emotionale Unterstützung",
+            "Recent Sessions": "Letzte Gespräche",
+            "Discussion Topics": "Gesprächsthemen",
+            "Goals & Achievements": "Ziele & Erfolge",
+            "Safety Alerts": "Sicherheitswarnungen",
+            "Refresh": "Aktualisieren",
+            "Conversation Started": "Gespräch Begonnen",
+            "Your child started talking to heyBuddy": "Ihr Kind hat mit heyBuddy zu sprechen begonnen",
+            "Goal Completed!": "Ziel Erreicht!",
+            "was completed": "wurde erreicht"
+        };
+
         function dashboard() {
             return {
                 deviceStatus: 'connecting',
@@ -403,19 +424,19 @@
                     this.goals = [
                         {
                             id: 1,
-                            title: 'Daily Tooth Brushing',
+                            title: 'Täglich Zähne putzen',
                             status: 'active',
                             progress: 85
                         },
                         {
                             id: 2,
-                            title: 'Read 3 Books This Week',
+                            title: '3 Bücher diese Woche lesen',
                             status: 'active',
                             progress: 60
                         },
                         {
                             id: 3,
-                            title: 'Practice Kindness',
+                            title: 'Freundlichkeit üben',
                             status: 'completed',
                             progress: 100
                         }

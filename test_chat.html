@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>heyBuddy Test Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-6 text-blue-600">🤖 heyBuddy Chat Test</h1>
+        
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div id="chat-messages" class="h-80 overflow-y-auto mb-4 p-4 bg-gray-50 rounded border space-y-2">
+                <div class="text-center text-gray-500 text-sm">Hallo! Ich bin heyBuddy. Frag mich etwas! 😊</div>
+            </div>
+            
+            <div class="flex gap-2">
+                <input 
+                    id="message-input" 
+                    type="text" 
+                    placeholder="Frag mich etwas... (z.B. 'Wie funktioniert ein Regenbogen?')"
+                    class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onkeypress="if(event.key==='Enter') sendMessage()"
+                >
+                <button 
+                    onclick="sendMessage()" 
+                    class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    Senden
+                </button>
+            </div>
+            
+            <div class="mt-4 text-sm text-gray-600">
+                <strong>Beispiele:</strong>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    <button onclick="askQuestion('Wie funktioniert ein Regenbogen?')" class="px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300 text-xs">🌈 Regenbogen</button>
+                    <button onclick="askQuestion('Erzähl mir eine Geschichte über einen mutigen Hasen')" class="px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300 text-xs">🐰 Geschichte</button>
+                    <button onclick="askQuestion('Warum ist der Himmel blau?')" class="px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300 text-xs">🌌 Himmel</button>
+                    <button onclick="askQuestion('Wie lernen Vögel fliegen?')" class="px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300 text-xs">🐦 Vögel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messageCount = 0;
+
+        function addMessage(content, isUser = false) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                isUser 
+                    ? 'bg-blue-500 text-white ml-auto' 
+                    : 'bg-white shadow border'
+            }`;
+            bubble.innerHTML = content;
+            
+            messageDiv.appendChild(bubble);
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function askQuestion(question) {
+            document.getElementById('message-input').value = question;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            input.value = '';
+            
+            // Add thinking indicator
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.id = 'thinking';
+            thinkingDiv.className = 'flex justify-start';
+            thinkingDiv.innerHTML = '<div class="bg-gray-200 px-4 py-2 rounded-lg"><span class="text-gray-600">💭 heyBuddy denkt nach...</span></div>';
+            document.getElementById('chat-messages').appendChild(thinkingDiv);
+            document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            
+            try {
+                const response = await fetch('http://localhost:8080/conversation/text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        user_id: 'test_chat_user',
+                        age: 8
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove thinking indicator
+                document.getElementById('thinking').remove();
+                
+                if (data.success) {
+                    let responseText = data.response;
+                    
+                    // Add emotional support indicator if needed
+                    if (data.safety_info?.emotional_support) {
+                        responseText = '💙 ' + responseText;
+                    }
+                    
+                    // Add parent notification if needed
+                    if (data.needs_adult_attention) {
+                        responseText += '<br><small class="text-orange-600">📧 Eltern wurden benachrichtigt</small>';
+                    }
+                    
+                    addMessage(responseText);
+                } else {
+                    addMessage('❌ Entschuldigung, ich konnte das nicht verstehen. Frag mich etwas anderes!');
+                }
+            } catch (error) {
+                document.getElementById('thinking').remove();
+                addMessage('❌ Verbindungsfehler. Ist heyBuddy gestartet?');
+            }
+        }
+    </script>
+</body>
+</html>

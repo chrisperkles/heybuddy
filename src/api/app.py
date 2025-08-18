@@ -12,6 +12,7 @@ from core.config import settings
 from core.audio import AudioManager
 from api.routes import create_conversation_router
 from api.websocket import WebSocketManager
+from api.debug_routes import create_debug_router
 
 
 logger = logging.getLogger(__name__)
@@ -38,9 +39,9 @@ def create_app(audio_manager: AudioManager, database=None) -> FastAPI:
     # CORS middleware for local network access
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:*", "http://127.0.0.1:*"],
+        allow_origins=["*"],  # Allow all origins for development
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
     
@@ -55,6 +56,11 @@ def create_app(audio_manager: AudioManager, database=None) -> FastAPI:
     # Include conversation routes
     conversation_router = create_conversation_router(audio_manager, database, websocket_manager)
     app.include_router(conversation_router)
+    
+    # Include debug routes (only in development)
+    if settings.debug or settings.environment == "development":
+        debug_router = create_debug_router()
+        app.include_router(debug_router)
     
     # WebSocket endpoint for real-time updates
     @app.websocket("/ws/{family_id}")

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>heyBuddy Mobile Dashboard</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="heyBuddy">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3B82F6">
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%233B82F6'/><text x='50' y='65' font-size='60' text-anchor='middle' fill='white'>🤖</text></svg>">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div x-data="mobileDashboard()" x-init="init()" class="pb-20">
+        
+        <!-- Header -->
+        <header class="bg-blue-600 p-4 shadow-lg">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="text-2xl">🤖</div>
+                    <div>
+                        <h1 class="text-lg font-bold">heyBuddy</h1>
+                        <p class="text-xs opacity-75">Mobile Dashboard</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 rounded-full" :class="connected ? 'bg-green-400' : 'bg-red-400'"></div>
+                    <span class="text-xs" x-text="connected ? 'Online' : 'Offline'"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Stats Cards -->
+        <div class="p-4 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-blue-400" x-text="stats.sessions"></div>
+                    <div class="text-xs text-gray-400">Gespräche heute</div>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-green-400" x-text="stats.emotional"></div>
+                    <div class="text-xs text-gray-400">Emotionale Hilfe</div>
+                </div>
+            </div>
+            
+            <!-- Recent Conversations -->
+            <div class="bg-gray-800 rounded-lg p-4">
+                <h3 class="font-semibold mb-3">Aktuelle Gespräche</h3>
+                <div class="space-y-2" x-show="conversations.length > 0">
+                    <template x-for="conv in conversations.slice(0, 3)">
+                        <div class="bg-gray-700 rounded p-3 text-sm">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-blue-400 font-medium" x-text="conv.time"></span>
+                                <span class="text-xs text-gray-400" x-text="conv.type"></span>
+                            </div>
+                            <p class="text-gray-300 text-xs line-clamp-2" x-text="conv.preview"></p>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="conversations.length === 0" class="text-center text-gray-400 py-4 text-sm">
+                    Noch keine Gespräche heute
+                </div>
+            </div>
+            
+            <!-- System Status -->
+            <div class="bg-gray-800 rounded-lg p-4">
+                <h3 class="font-semibold mb-3">System Status</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-400">CPU</span>
+                        <span class="text-sm" x-text="system.cpu + '%'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-400">Speicher</span>
+                        <span class="text-sm" x-text="system.memory + '%'"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-400">Uptime</span>
+                        <span class="text-sm" x-text="system.uptime"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700">
+            <div class="flex justify-around py-2">
+                <button @click="currentTab = 'dashboard'" class="flex flex-col items-center py-2 px-4" :class="currentTab === 'dashboard' ? 'text-blue-400' : 'text-gray-400'">
+                    <div class="text-lg">📊</div>
+                    <span class="text-xs">Dashboard</span>
+                </button>
+                <button @click="currentTab = 'conversations'" class="flex flex-col items-center py-2 px-4" :class="currentTab === 'conversations' ? 'text-blue-400' : 'text-gray-400'">
+                    <div class="text-lg">💬</div>
+                    <span class="text-xs">Gespräche</span>
+                </button>
+                <button @click="currentTab = 'settings'" class="flex flex-col items-center py-2 px-4" :class="currentTab === 'settings' ? 'text-blue-400' : 'text-gray-400'">
+                    <div class="text-lg">⚙️</div>
+                    <span class="text-xs">Einstellungen</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        function mobileDashboard() {
+            return {
+                connected: false,
+                currentTab: 'dashboard',
+                stats: {
+                    sessions: 0,
+                    emotional: 0
+                },
+                conversations: [],
+                system: {
+                    cpu: 0,
+                    memory: 0,
+                    uptime: '0h'
+                },
+                piIpAddress: localStorage.getItem('heybuddy-pi-ip') || 'raspberry-pi.local',
+                
+                init() {
+                    this.setupPiConnection();
+                    this.loadData();
+                    setInterval(() => this.loadData(), 30000); // Update every 30s
+                },
+                
+                async setupPiConnection() {
+                    // Try common Pi addresses
+                    const addresses = [
+                        this.piIpAddress,
+                        'raspberry-pi.local:8080',
+                        '192.168.1.100:8080',
+                        'heybuddy.local:8080'
+                    ];
+                    
+                    for (let addr of addresses) {
+                        try {
+                            const response = await fetch(`http://${addr}/health`, { timeout: 5000 });
+                            if (response.ok) {
+                                this.piIpAddress = addr;
+                                localStorage.setItem('heybuddy-pi-ip', addr);
+                                this.connected = true;
+                                console.log(`Connected to Pi at ${addr}`);
+                                return;
+                            }
+                        } catch (e) {
+                            console.log(`Failed to connect to ${addr}`);
+                        }
+                    }
+                    
+                    // Show connection setup if none found
+                    this.showConnectionSetup();
+                },
+                
+                async loadData() {
+                    if (!this.connected) return;
+                    
+                    try {
+                        // Load system stats
+                        const sysResponse = await fetch(`http://${this.piIpAddress}/debug/system`);
+                        if (sysResponse.ok) {
+                            const sysData = await sysResponse.json();
+                            this.system.cpu = sysData.cpu?.usage_percent || 0;
+                            this.system.memory = sysData.memory?.used_percent || 0;
+                            this.system.uptime = sysData.uptime_hours ? `${sysData.uptime_hours}h` : '0h';
+                        }
+                        
+                        // Load conversation stats (mock for now)
+                        this.stats.sessions = Math.floor(Math.random() * 10) + 1;
+                        this.stats.emotional = Math.floor(Math.random() * 3);
+                        
+                        // Mock recent conversations
+                        this.conversations = [
+                            {
+                                time: '14:30',
+                                type: 'Lernen',
+                                preview: 'Wie funktioniert ein Regenbogen? Das Kind fragte nach Wissenschaft...'
+                            },
+                            {
+                                time: '13:15', 
+                                type: 'Geschichte',
+                                preview: 'Erzähl mir eine Geschichte über einen mutigen Hasen...'
+                            }
+                        ];
+                        
+                    } catch (error) {
+                        console.error('Failed to load data:', error);
+                        this.connected = false;
+                    }
+                },
+                
+                showConnectionSetup() {
+                    const ip = prompt('Pi IP-Adresse eingeben (z.B. 192.168.1.100:8080):');
+                    if (ip) {
+                        this.piIpAddress = ip;
+                        localStorage.setItem('heybuddy-pi-ip', ip);
+                        this.setupPiConnection();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

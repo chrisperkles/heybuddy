@@ -1,0 +1,36 @@
+[Unit]
+Description=heyBuddy OTA Update Check
+Documentation=https://github.com/chrisperkles/heybuddy
+Wants=network-online.target
+After=network-online.target heybuddy.service
+Requires=heybuddy.service
+
+[Service]
+Type=oneshot
+User=heybuddy
+Group=heybuddy
+WorkingDirectory=/opt/heybuddy
+Environment=PYTHONPATH=/opt/heybuddy/src
+EnvironmentFile=-/opt/heybuddy/config/.env
+
+# Main update check command
+ExecStart=/opt/heybuddy/scripts/check-updates.sh
+
+# Timeout for update process (30 minutes max)
+TimeoutStartSec=1800
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/heybuddy /var/log /var/run
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=heybuddy-updater
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,31 @@
+{
+  "name": "heyBuddy Dashboard",
+  "short_name": "heyBuddy",
+  "description": "Mobile dashboard for heyBuddy AI companion monitoring",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#3B82F6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%233B82F6'/><text x='96' y='130' font-size='100' text-anchor='middle' fill='white'>🤖</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%233B82F6'/><text x='256' y='350' font-size='280' text-anchor='middle' fill='white'>🤖</text></svg>",
+      "sizes": "512x512", 
+      "type": "image/svg+xml"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 844'><rect width='390' height='844' fill='%23111827'/><text x='195' y='400' font-size='40' text-anchor='middle' fill='white'>heyBuddy Dashboard</text></svg>",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["productivity", "utilities"]
+}

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     version: str = "0.1.0"
     debug: bool = False
     environment: str = Field(default="development", env="ENVIRONMENT")
+    language: str = Field(default="de", env="LANGUAGE")  # "en" or "de"
     
     # API settings
     api_host: str = Field(default="0.0.0.0", env="API_HOST")

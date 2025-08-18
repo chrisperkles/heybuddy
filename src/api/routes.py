@@ -11,6 +11,7 @@ import io
 from core.ai_client import AIClient
 from core.safety import SafetyManager
 from core.audio import AudioManager
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,8 @@ def create_conversation_router(audio_manager: AudioManager, database=None, webso
     """Create conversation router with dependencies"""
     router = APIRouter(prefix="/conversation", tags=["conversation"])
     
-    # Initialize AI client and safety manager
-    ai_client = AIClient()
+    # Initialize AI client and safety manager with language setting
+    ai_client = AIClient(language=settings.language)
     safety_manager = SafetyManager()
     
     @router.on_event("startup")
