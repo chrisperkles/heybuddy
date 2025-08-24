@@ -117,6 +117,55 @@ check_success "System service installation"
 # Step 8: Create configuration file
 step 8 "Creating initial configuration"
 if [ ! -f /opt/heybuddy/.env ]; then
+    # Create .env.example if it doesn't exist
+    if [ ! -f /opt/heybuddy/.env.example ]; then
+        sudo tee /opt/heybuddy/.env.example > /dev/null << 'EOF'
+# heyBuddy Configuration Example
+# OpenAI API Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_MAX_TOKENS=150
+OPENAI_TEMPERATURE=0.7
+
+# Application Settings
+APP_NAME=heyBuddy
+VERSION=0.1.0
+ENVIRONMENT=development
+DEBUG=false
+API_PORT=8080
+LOG_LEVEL=INFO
+
+# Language and Localization
+LANGUAGE=en
+TIMEZONE=UTC
+
+# Audio Configuration
+AUDIO_DEVICE=mock
+SAMPLE_RATE=44100
+CHANNELS=1
+CHUNK_SIZE=1024
+
+# Safety and Moderation
+ENABLE_MODERATION=true
+MAX_CONVERSATION_LENGTH=20
+CONTENT_FILTER_LEVEL=strict
+
+# Database Configuration
+DATABASE_URL=sqlite:///data/heybuddy.db
+DATABASE_ENCRYPTION=true
+
+# Child Default Settings
+DEFAULT_CHILD_AGE=8
+MAX_DAILY_CONVERSATIONS=50
+
+# System Configuration
+LOG_FILE=/opt/heybuddy/logs/app.log
+DATA_DIR=/opt/heybuddy/data
+BACKUP_DIR=/opt/heybuddy/backups
+EOF
+    fi
+    
+    # Copy example to actual config
     sudo cp /opt/heybuddy/.env.example /opt/heybuddy/.env
     sudo chown heybuddy:heybuddy /opt/heybuddy/.env
     
