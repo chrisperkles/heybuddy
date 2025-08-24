@@ -223,8 +223,20 @@ step 12 "Final system configuration"
 sudo raspi-config nonint do_i2c 0
 sudo raspi-config nonint do_spi 0
 
-# Set GPU memory split for better audio performance
-sudo raspi-config nonint do_memory_split 64
+# Set GPU memory split for better audio performance (modern approach)
+if [ -f /boot/config.txt ]; then
+    # Check if gpu_mem is already set
+    if ! grep -q "gpu_mem=" /boot/config.txt; then
+        echo "gpu_mem=64" | sudo tee -a /boot/config.txt > /dev/null
+        echo -e "${GREEN}🎮 GPU memory set to 64MB for better audio performance${NC}"
+    fi
+elif [ -f /boot/firmware/config.txt ]; then
+    # For newer Pi OS versions
+    if ! grep -q "gpu_mem=" /boot/firmware/config.txt; then
+        echo "gpu_mem=64" | sudo tee -a /boot/firmware/config.txt > /dev/null
+        echo -e "${GREEN}🎮 GPU memory set to 64MB for better audio performance${NC}"
+    fi
+fi
 
 check_success "Final system configuration"
 
