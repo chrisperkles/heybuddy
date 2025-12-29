@@ -141,7 +141,7 @@ TIMEZONE=UTC
 
 # Audio Configuration
 AUDIO_DEVICE=mock
-SAMPLE_RATE=44100
+SAMPLE_RATE=16000
 CHANNELS=1
 CHUNK_SIZE=1024
 
@@ -183,11 +183,12 @@ EOF
 fi
 check_success "Configuration setup"
 
-# Step 9: Configure audio permissions
-step 9 "Configuring audio permissions"
+# Step 9: Configure audio and input permissions
+step 9 "Configuring audio and input permissions"
 sudo usermod -a -G audio heybuddy
 sudo usermod -a -G dialout heybuddy
-check_success "Audio permissions"
+sudo usermod -a -G input heybuddy  # Required for button detection
+check_success "Audio and input permissions"
 
 # Step 10: Setup log rotation
 step 10 "Setting up log rotation"

@@ -3,12 +3,18 @@ Audio processing and device management for heyBuddy
 """
 import asyncio
 import logging
-import pygame
+import os
 import io
 import wave
 from abc import ABC, abstractmethod
 from typing import Optional, Callable
 from pathlib import Path
+
+# Fix pygame on headless systems (Raspberry Pi without display)
+os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+os.environ.setdefault('SDL_AUDIODRIVER', 'alsa')
+
+import pygame
 
 logger = logging.getLogger(__name__)
 
@@ -243,13 +249,14 @@ class PowerConfS330Device(AudioInterface):
 
 class AudioManager:
     """Main audio manager that handles device selection and operation"""
-    
+
     def __init__(self, device_type: str = "auto", sample_rate: int = 16000):
         self.device_type = device_type
         self.sample_rate = sample_rate
         self.device: Optional[AudioInterface] = None
         self.button_callback: Optional[Callable] = None
-        
+        self.push_to_talk = None
+
     async def initialize(self) -> bool:
         """Initialize the appropriate audio device"""
         if self.device_type == "mock":
@@ -265,35 +272,68 @@ class AudioManager:
             else:
                 self.device = MockAudioDevice(self.sample_rate)
                 logger.info("Using mock audio device")
-        
+
         if self.device:
-            return await self.device.initialize()
+            init_result = await self.device.initialize()
+
+            # Initialize push-to-talk if using hardware device
+            if init_result and isinstance(self.device, PowerConfS330Device):
+                await self._init_push_to_talk()
+
+            return init_result
         return False
-    
+
+    async def _init_push_to_talk(self):
+        """Initialize push-to-talk button handling"""
+        try:
+            from .button_handler import PushToTalkController
+            self.push_to_talk = PushToTalkController(self)
+            if await self.push_to_talk.start():
+                logger.info("Push-to-talk enabled - use device button to record")
+            else:
+                logger.warning("Push-to-talk unavailable - button device not found")
+                self.push_to_talk = None
+        except ImportError as e:
+            logger.warning(f"Push-to-talk unavailable: {e}")
+            self.push_to_talk = None
+        except Exception as e:
+            logger.error(f"Failed to initialize push-to-talk: {e}")
+            self.push_to_talk = None
+
     async def record_audio(self, duration: float = 5.0) -> bytes:
         """Record audio from the current device"""
         if not self.device:
             raise RuntimeError("Audio device not initialized")
         return await self.device.record(duration)
-    
+
     async def play_audio(self, audio_data: bytes) -> None:
         """Play audio through the current device"""
         if not self.device:
             raise RuntimeError("Audio device not initialized")
         await self.device.play(audio_data)
-    
+
     async def is_device_available(self) -> bool:
         """Check if current device is available"""
         if not self.device:
             return False
         return await self.device.is_available()
-    
+
     def set_button_callback(self, callback: Callable) -> None:
-        """Set callback for hardware button press (if supported)"""
+        """Set callback for hardware button press (push-to-talk)"""
         self.button_callback = callback
-    
+        if self.push_to_talk:
+            self.push_to_talk.set_conversation_callback(callback)
+            logger.info("Push-to-talk callback registered")
+
+    def is_push_to_talk_available(self) -> bool:
+        """Check if push-to-talk is available"""
+        return self.push_to_talk is not None
+
     async def cleanup(self) -> None:
         """Cleanup audio resources"""
+        if self.push_to_talk:
+            await self.push_to_talk.stop()
+            self.push_to_talk = None
         if self.device:
             await self.device.cleanup()
             self.device = None

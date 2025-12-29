@@ -87,11 +87,16 @@ def create_app(audio_manager: AudioManager, database=None) -> FastAPI:
     @app.get("/status")
     async def get_status():
         """Get current system status"""
+        audio_available = await audio_manager.is_device_available()
+        push_to_talk = audio_manager.is_push_to_talk_available()
         return {
             "app_name": settings.app_name,
             "version": settings.version,
             "environment": settings.environment,
-            "audio_device_type": settings.audio_device
+            "audio_device_type": settings.audio_device,
+            "audio_available": audio_available,
+            "push_to_talk_available": push_to_talk,
+            "language": settings.language
         }
     
     # Audio test endpoint

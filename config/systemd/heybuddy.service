@@ -12,6 +12,8 @@ Group=heybuddy
 WorkingDirectory=/opt/heybuddy
 Environment=PYTHONPATH=/opt/heybuddy/src
 Environment=ENVIRONMENT=production
+Environment=SDL_VIDEODRIVER=dummy
+Environment=SDL_AUDIODRIVER=alsa
 EnvironmentFile=-/opt/heybuddy/.env
 
 # Main service command
@@ -50,11 +52,11 @@ MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 
 # Audio access (required for PowerConf S330)
-SupplementaryGroups=audio
+# Input access (required for button detection)
+SupplementaryGroups=audio input
 DevicePolicy=closed
-DeviceAllow=/dev/snd/controlC1 rw
-DeviceAllow=/dev/snd/pcmC1D0c rw
-DeviceAllow=/dev/snd/pcmC1D0p rw
+DeviceAllow=/dev/snd/* rw
+DeviceAllow=/dev/input/* rw
 
 # Logging
 StandardOutput=journal

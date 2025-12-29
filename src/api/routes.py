@@ -172,14 +172,21 @@ def create_conversation_router(audio_manager: AudioManager, database=None, webso
         """Process voice-based conversation"""
         try:
             logger.info(f"Voice conversation request from user {request.user_id}")
-            
+
             # Record audio
             audio_data = await audio_manager.record_audio(duration=request.duration)
-            
-            # Convert speech to text (placeholder - would use Whisper API)
-            # For now, simulate with a test message
-            user_text = "Hello, this is a test voice message"
-            logger.info(f"Simulated speech-to-text: {user_text}")
+
+            # Convert speech to text using Whisper API
+            user_text = await _speech_to_text(audio_data)
+
+            if not user_text:
+                return ConversationResponse(
+                    success=False,
+                    error="speech_recognition_failed",
+                    response="I couldn't hear you clearly. Can you try again?"
+                )
+
+            logger.info(f"Speech-to-text result: {user_text}")
             
             # Process as text conversation
             text_request = ConversationRequest(
@@ -294,29 +301,68 @@ def create_conversation_router(audio_manager: AudioManager, database=None, webso
 
 
 async def _text_to_speech(text: str) -> bytes:
-    """Convert text to speech (placeholder implementation)"""
-    # This would use OpenAI TTS API in production
-    # For now, return silence as placeholder
-    
-    # Generate 2 seconds of silence as WAV
-    import wave
-    buffer = io.BytesIO()
-    with wave.open(buffer, 'wb') as wav_file:
-        wav_file.setnchannels(1)
-        wav_file.setsampwidth(2)
-        wav_file.setframerate(16000)
-        # 2 seconds of silence
-        silence = b'\x00' * (16000 * 2 * 2)
-        wav_file.writeframes(silence)
-    
-    buffer.seek(0)
-    logger.info(f"Generated TTS audio for text: {text[:50]}...")
-    return buffer.getvalue()
+    """Convert text to speech using OpenAI TTS API"""
+    try:
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+        # Use alloy voice - friendly and suitable for children
+        response = await client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=text,
+            response_format="wav"
+        )
+
+        # Get audio bytes
+        audio_data = response.content
+        logger.info(f"Generated TTS audio for text: {text[:50]}...")
+        return audio_data
+
+    except Exception as e:
+        logger.error(f"Text-to-speech failed: {e}")
+        # Fallback to silence if TTS fails
+        import wave
+        buffer = io.BytesIO()
+        with wave.open(buffer, 'wb') as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(16000)
+            silence = b'\x00' * (16000 * 2 * 2)
+            wav_file.writeframes(silence)
+        buffer.seek(0)
+        return buffer.getvalue()
 
 
 async def _speech_to_text(audio_data: bytes) -> str:
-    """Convert speech to text (placeholder implementation)"""
-    # This would use OpenAI Whisper API in production
-    # For now, return a placeholder response
-    logger.info("Processed speech-to-text (simulated)")
-    return "This is a simulated speech recognition result"
+    """Convert speech to text using OpenAI Whisper API"""
+    try:
+        from openai import AsyncOpenAI
+        import tempfile
+        import os
+
+        client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+        # Write audio to temporary file (Whisper API requires file)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+            tmp_file.write(audio_data)
+            tmp_path = tmp_file.name
+
+        try:
+            with open(tmp_path, "rb") as audio_file:
+                # Use Whisper API with language hint
+                transcript = await client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language=settings.language if settings.language != "en" else None
+                )
+            logger.info(f"Speech-to-text result: {transcript.text[:100]}...")
+            return transcript.text
+        finally:
+            # Clean up temp file
+            os.unlink(tmp_path)
+
+    except Exception as e:
+        logger.error(f"Speech-to-text failed: {e}")
+        return ""
